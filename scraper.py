@@ -526,6 +526,91 @@ def find_matching_product(
 
     return best_product
 
+def find_product_by_position(old_product, old_products, new_products):
+    """
+    Try to find the corresponding product using its
+    position in the product list.
+
+    This is useful when websites keep products
+    in approximately the same order.
+    """
+
+    old_position = get_product_position(
+        old_product,
+        old_products
+    )
+
+    if old_position is None:
+        return None
+
+    # Make sure the same position exists
+    if old_position >= len(new_products):
+        return None
+
+    return new_products[old_position]
+def is_product_match(old_product, new_product):
+    """
+    Check whether two product elements have
+    sufficiently similar HTML structures.
+    """
+
+    old_signature = get_product_signature(old_product)
+    new_signature = get_product_signature(new_product)
+
+    score = compare_product_signatures(
+        old_signature,
+        new_signature
+    )
+
+    print("Structural score:", score)
+
+    # Our current structure score can reach 13.
+    if score >= 10:
+        return True
+
+    return False
+
+def find_matching_product_by_structure(old_product, new_products):
+    """Find the strongest structural match."""
+
+    old_signature = get_product_signature(old_product)
+
+    best_product = None
+    best_score = -1
+    second_best_score = -1
+
+    for product in new_products:
+
+        new_signature = get_product_signature(product)
+
+        score = compare_product_signatures(
+            old_signature,
+            new_signature
+        )
+
+        print("Candidate structural score:", score)
+
+        if score > best_score:
+            second_best_score = best_score
+            best_score = score
+            best_product = product
+
+        elif score > second_best_score:
+            second_best_score = score
+
+    # Not enough structural similarity
+    if best_score < 10:
+        return None
+
+    # If multiple candidates are equally good,
+    # we cannot confidently identify the product.
+    if best_score == second_best_score:
+        return None
+
+    return {
+        "product": best_product,
+        "score": best_score
+    }
 
 # ============================================================
 # 11. LOAD HTML FILES
@@ -654,3 +739,41 @@ else:
             print(
                 "❌ Could not find a suitable price."
             )
+
+## Main Pipeline
+print("Main Pipeline")
+for old_product in old_products:
+
+    old_position = get_product_position(
+        old_product,
+        old_products
+    )
+
+    if old_position >= len(new_products):
+
+        print("❌ Product removed.")
+        continue
+
+    new_product = new_products[old_position]
+
+    if not is_product_match(old_product, new_product):
+
+        print("⚠️ Product structure changed.")
+        continue
+
+    print("✅ Product found.")
+
+    old_price = get_price_element(old_product)
+
+    result = find_best_structural_match(
+        old_price,
+        new_product
+    )
+
+    if result:
+
+        print("New price:", result["value"])
+
+    else:
+
+        print("❌ Price not found.")
